@@ -12,7 +12,6 @@
       --text-main: #f8fafc;
       --text-sub: #94a3b8;
       --accent-blue: #0284c7;
-      --accent-blue-hover: #0369a1;
       --mercari: #ea580c;
       --yahoo-furima: #c026d3;
       --yahoo-auc: #ca8a04;
@@ -82,6 +81,7 @@
 
     .api-row {
       display: flex;
+      flex-direction: column;
       gap: 6px;
     }
     .input-field {
@@ -215,12 +215,15 @@
   <section class="card">
     <div class="card-title">
       <span>⚡ AIトレンド・今月の狙い目</span>
-      <button class="btn-clear" onclick="toggleApiSettings()">🔑 API設定</button>
+      <button class="btn-clear" onclick="toggleApiSettings()">🔑 設定</button>
     </div>
 
     <div id="apiBox" style="display: none;" class="api-row">
-      <input type="text" id="apiKey" class="input-field" placeholder="AI StudioのAPIキーを入力">
-      <button class="btn btn-save" style="width: 80px;" onclick="saveApiKey()">保存</button>
+      <input type="text" id="apiKey" class="input-field" placeholder="Gemini APIキーを入力">
+      <div style="display: flex; gap: 6px;">
+        <input type="text" id="modelName" class="input-field" placeholder="モデル名 (例: gemini-2.5-flash)" value="gemini-2.5-flash">
+        <button class="btn btn-save" style="width: 80px;" onclick="saveApiKey()">保存</button>
+      </div>
     </div>
 
     <button class="btn btn-ai" onclick="runAiTrendAnalysis()">
@@ -327,9 +330,14 @@
            localStorage.getItem('apiKey') || '';
   }
 
+  function getSavedModel() {
+    return localStorage.getItem('furugi_model_name') || 'gemini-2.5-flash';
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
     const key = getSavedApiKey();
     if (key) document.getElementById('apiKey').value = key;
+    document.getElementById('modelName').value = getSavedModel();
     renderKeepList();
   });
 
@@ -339,14 +347,16 @@
   }
 
   function saveApiKey() {
-    const val = document.getElementById('apiKey').value.trim();
-    if (!val) {
+    const key = document.getElementById('apiKey').value.trim();
+    const model = document.getElementById('modelName').value.trim() || 'gemini-2.5-flash';
+    if (!key) {
       alert('APIキーを入力してください');
       return;
     }
-    localStorage.setItem('furugi_gemini_key', val);
-    localStorage.setItem('gemini_api_key', val);
-    alert('APIキーを端末に保存しました');
+    localStorage.setItem('furugi_gemini_key', key);
+    localStorage.setItem('gemini_api_key', key);
+    localStorage.setItem('furugi_model_name', model);
+    alert('設定を保存しました');
     document.getElementById('apiBox').style.display = 'none';
   }
 
@@ -424,11 +434,12 @@
   // AI分析
   async function runAiTrendAnalysis() {
     let apiKey = document.getElementById('apiKey').value.trim() || getSavedApiKey();
+    let modelName = document.getElementById('modelName').value.trim() || getSavedModel();
     const output = document.getElementById('aiOutput');
     const chipBox = document.getElementById('aiChips');
 
     if (!apiKey) {
-      alert('API設定ボタンを開いてAPIキーを入力・保存してください');
+      alert('設定ボタンを開いてAPIキーを入力・保存してください');
       document.getElementById('apiBox').style.display = 'flex';
       return;
     }
@@ -445,7 +456,7 @@
 3. 【おすすめ検索キーワード】（カンマ区切りで5個）`;
 
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
