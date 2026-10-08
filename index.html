@@ -16,7 +16,6 @@
       --mercari: #ea580c;
       --yahoo-furima: #c026d3;
       --yahoo-auc: #ca8a04;
-      --active-chip: #38bdf8;
       --del-red: #ef4444;
     }
 
@@ -133,6 +132,7 @@
       color: #cbd5e1;
       min-height: 48px;
       white-space: pre-wrap;
+      word-break: break-all;
     }
 
     .chip-group-label {
@@ -219,7 +219,7 @@
     </div>
 
     <div id="apiBox" style="display: none;" class="api-row">
-      <input type="password" id="apiKey" class="input-field" placeholder="Gemini APIキーを入力">
+      <input type="text" id="apiKey" class="input-field" placeholder="AI StudioのAPIキーを入力">
       <button class="btn btn-save" style="width: 80px;" onclick="saveApiKey()">保存</button>
     </div>
 
@@ -321,10 +321,15 @@
 <script>
   let selectedWords = [];
 
-  // 初期読み込み
+  function getSavedApiKey() {
+    return localStorage.getItem('furugi_gemini_key') || 
+           localStorage.getItem('gemini_api_key') || 
+           localStorage.getItem('apiKey') || '';
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
-    const savedKey = localStorage.getItem('furugi_gemini_key') || '';
-    if (savedKey) document.getElementById('apiKey').value = savedKey;
+    const key = getSavedApiKey();
+    if (key) document.getElementById('apiKey').value = key;
     renderKeepList();
   });
 
@@ -335,12 +340,16 @@
 
   function saveApiKey() {
     const val = document.getElementById('apiKey').value.trim();
+    if (!val) {
+      alert('APIキーを入力してください');
+      return;
+    }
     localStorage.setItem('furugi_gemini_key', val);
+    localStorage.setItem('gemini_api_key', val);
     alert('APIキーを端末に保存しました');
     document.getElementById('apiBox').style.display = 'none';
   }
 
-  // チップ選択トグル
   function toggleChip(el, word) {
     if (selectedWords.includes(word)) {
       selectedWords = selectedWords.filter(w => w !== word);
@@ -387,7 +396,6 @@
     alert('コピーしました: ' + query);
   }
 
-  // 3大モール連携URL生成
   function getQuery() {
     return encodeURIComponent(selectedWords.join(' '));
   }
@@ -395,7 +403,6 @@
   function openMercari() {
     const q = getQuery();
     if (!q) { alert('検索キーワードを選択してください'); return; }
-    // 売り切れ (status=sold_out), 価格帯 (3500-15000), 直近順
     const url = `https://jp.mercari.com/search?keyword=${q}&status=sold_out&price_min=3500&price_max=15000&sort=created_time&order=desc`;
     window.open(url, '_blank');
   }
@@ -403,7 +410,6 @@
   function openYahooFurima() {
     const q = getQuery();
     if (!q) { alert('検索キーワードを選択してください'); return; }
-    // 売り切れ (isSoldOut=1)
     const url = `https://paypayfleamarket.yahoo.co.jp/search/${q}?isSoldOut=1`;
     window.open(url, '_blank');
   }
@@ -411,19 +417,18 @@
   function openYahooAuc() {
     const q = getQuery();
     if (!q) { alert('検索キーワードを選択してください'); return; }
-    // 落札相場 (closed=1)
     const url = `https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${q}`;
     window.open(url, '_blank');
   }
 
-  // AIトレンド分析
+  // AI分析
   async function runAiTrendAnalysis() {
-    const apiKey = localStorage.getItem('furugi_gemini_key') || document.getElementById('apiKey').value.trim();
+    let apiKey = document.getElementById('apiKey').value.trim() || getSavedApiKey();
     const output = document.getElementById('aiOutput');
     const chipBox = document.getElementById('aiChips');
 
     if (!apiKey) {
-      alert('API設定ボタンからGemini APIキーを登録してください');
+      alert('API設定ボタンを開いてAPIキーを入力・保存してください');
       document.getElementById('apiBox').style.display = 'flex';
       return;
     }
@@ -433,26 +438,32 @@
     chipBox.innerHTML = '';
 
     const currentMonth = new Date().getMonth() + 1;
-
-    const prompt = `現在は${currentMonth}月です。日本の古着転売市場（メルカリ・ヤフオク）において、今月〜来月にかけて高回転・高利益で売れるアイテムとトレンドを分析してください。
-出力フォーマット:
-1. 【今月の最重要狙い目TOP3】（アイテム名と理由）
-2. 【高騰ディテール】（例: フェード、ボックス短丈、刺繍ロゴなど）
-3. 【おすすめ検索キーワード】（カンマ区切りで5個。例: Carhartt ダック, NIKE 銀タグ, オールドGAP ネルシャツ, UMBRO ナイロン, 90s リバースウィーブ）`;
+    const prompt = `現在は${currentMonth}月です。日本の古着市場（メルカリ・ヤフオク）で、今月〜来月にかけて高回転・高利益で売れるアイテムとトレンドを分析してください。
+出力形式:
+1. 【今月の重点狙い目】（おすすめアイテム3点とその理由）
+2. 【高騰ディテール】（例: フェード、短丈ボックス、刺繍ロゴ等）
+3. 【おすすめ検索キーワード】（カンマ区切りで5個）`;
 
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
         })
       });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson && errJson.error ? errJson.error.message : `HTTP ${res.status}`);
+      }
+
       const data = await res.json();
-      const resText = data.candidates[0].content.parts[0].text;
+      const resText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!resText) throw new Error('AIからの応答が空でした');
+
       output.innerText = resText;
 
-      // キーワード抽出してボタン化
       const lines = resText.split('\n');
       const kwLine = lines.find(l => l.includes('おすすめ検索キーワード') || l.includes('3.'));
       if (kwLine) {
@@ -471,11 +482,10 @@
         chipBox.style.display = 'flex';
       }
     } catch (e) {
-      output.innerText = 'エラーが発生しました。APIキーまたは通信状況をご確認ください。';
+      output.innerText = 'エラー詳細: ' + e.message;
     }
   }
 
-  // Keepメモ機能
   function saveToKeep() {
     const text = selectedWords.join(' ');
     if (!text) { alert('保存するワードがありません'); return; }
