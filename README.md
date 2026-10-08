@@ -1,1 +1,536 @@
-# furugi-research
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>古着リサーチ PRO - 事前市場相場リサーチ</title>
+  <style>
+    :root {
+      --bg-main: #0b1329;
+      --card-bg: #162033;
+      --card-border: #1e293b;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --accent-blue: #0284c7;
+      --accent-blue-hover: #0369a1;
+      --mercari: #ea580c;
+      --yahoo-furima: #c026d3;
+      --yahoo-auc: #ca8a04;
+      --active-chip: #38bdf8;
+      --del-red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      padding: 14px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    header {
+      text-align: center;
+      padding: 6px 0;
+    }
+    header h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    header p {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      margin-top: 2px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .api-row {
+      display: flex;
+      gap: 6px;
+    }
+    .input-field {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .input-field:focus {
+      border-color: #38bdf8;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+    .btn:active {
+      opacity: 0.8;
+    }
+    .btn-ai { background: var(--accent-blue); }
+    .btn-mercari { background: var(--mercari); }
+    .btn-yfurima { background: var(--yahoo-furima); }
+    .btn-yauc { background: var(--yahoo-auc); }
+    .btn-save { background: #0284c7; }
+    .btn-clear { background: #334155; font-size: 0.75rem; padding: 6px 10px; width: auto; }
+
+    .ai-result-box {
+      background: #090e1a;
+      border: 1px dashed #334155;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      min-height: 48px;
+      white-space: pre-wrap;
+    }
+
+    .chip-group-label {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin-top: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 6px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .chip.active {
+      background: #0369a1;
+      border-color: #38bdf8;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .search-display {
+      background: #090e1a;
+      border: 1px solid #334155;
+      padding: 10px;
+      border-radius: 8px;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .search-display span {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #38bdf8;
+      word-break: break-all;
+    }
+
+    .keep-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .keep-del {
+      color: var(--del-red);
+      cursor: pointer;
+      padding: 2px 6px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>🔍 古着リサーチ PRO</h1>
+    <p>仕入れ前の市場データ＆トレンド事前照会</p>
+  </header>
+
+  <!-- 1. AIトレンド診断 -->
+  <section class="card">
+    <div class="card-title">
+      <span>⚡ AIトレンド・今月の狙い目</span>
+      <button class="btn-clear" onclick="toggleApiSettings()">🔑 API設定</button>
+    </div>
+
+    <div id="apiBox" style="display: none;" class="api-row">
+      <input type="password" id="apiKey" class="input-field" placeholder="Gemini APIキーを入力">
+      <button class="btn btn-save" style="width: 80px;" onclick="saveApiKey()">保存</button>
+    </div>
+
+    <button class="btn btn-ai" onclick="runAiTrendAnalysis()">
+      <span>💡 今月の勝ち筋トレンドを診断</span>
+    </button>
+    <div id="aiOutput" class="ai-result-box">「診断」を押すと、今月売れやすいカテゴリと注目ワードをAIが提案します。</div>
+    <div id="aiChips" class="chips-container" style="display: none;"></div>
+  </section>
+
+  <!-- 2. ワンタップ検索ビルダー -->
+  <section class="card">
+    <div class="card-title">
+      <span>🎯 ワンタップ検索ワード生成</span>
+      <button class="btn-clear" onclick="resetChips()">リセット</button>
+    </div>
+
+    <div class="search-display">
+      <span id="selectedWordsText">（ボタンを選んでください）</span>
+      <button class="btn-clear" onclick="copyKeywords()">コピー</button>
+    </div>
+
+    <div class="chip-group-label">王道ブランド</div>
+    <div class="chips-container" id="brandChips">
+      <button class="chip" onclick="toggleChip(this, 'NIKE')">NIKE</button>
+      <button class="chip" onclick="toggleChip(this, 'adidas')">adidas</button>
+      <button class="chip" onclick="toggleChip(this, 'Champion')">Champion</button>
+      <button class="chip" onclick="toggleChip(this, 'Carhartt')">Carhartt</button>
+      <button class="chip" onclick="toggleChip(this, 'Ralph Lauren')">Ralph Lauren</button>
+      <button class="chip" onclick="toggleChip(this, 'Patagonia')">Patagonia</button>
+      <button class="chip" onclick="toggleChip(this, 'THE NORTH FACE')">THE NORTH FACE</button>
+      <button class="chip" onclick="toggleChip(this, 'Levi\'s')">Levi's</button>
+      <button class="chip" onclick="toggleChip(this, 'オールドGAP')">オールドGAP</button>
+      <button class="chip" onclick="toggleChip(this, 'STUSSY')">STUSSY</button>
+      <button class="chip" onclick="toggleChip(this, '米軍実物')">米軍実物</button>
+    </div>
+
+    <div class="chip-group-label">カテゴリ</div>
+    <div class="chips-container" id="catChips">
+      <button class="chip" onclick="toggleChip(this, 'スウェット')">スウェット</button>
+      <button class="chip" onclick="toggleChip(this, 'パーカー')">パーカー</button>
+      <button class="chip" onclick="toggleChip(this, 'ナイロンジャケット')">ナイロンジャケット</button>
+      <button class="chip" onclick="toggleChip(this, 'トラックジャケット')">トラックジャケット</button>
+      <button class="chip" onclick="toggleChip(this, 'ネルシャツ')">ネルシャツ</button>
+      <button class="chip" onclick="toggleChip(this, 'デニムジャケット')">デニムジャケット</button>
+      <button class="chip" onclick="toggleChip(this, 'ベスト')">ベスト</button>
+      <button class="chip" onclick="toggleChip(this, 'アウター')">アウター</button>
+    </div>
+
+    <div class="chip-group-label">売れ筋ディテール</div>
+    <div class="chips-container" id="detailChips">
+      <button class="chip" onclick="toggleChip(this, '90s')">90s</button>
+      <button class="chip" onclick="toggleChip(this, 'USA製')">USA製</button>
+      <button class="chip" onclick="toggleChip(this, '刺繍ロゴ')">刺繍ロゴ</button>
+      <button class="chip" onclick="toggleChip(this, 'フェード')">フェード</button>
+      <button class="chip" onclick="toggleChip(this, '短丈')">短丈</button>
+      <button class="chip" onclick="toggleChip(this, 'リバースウィーブ')">リバースウィーブ</button>
+      <button class="chip" onclick="toggleChip(this, '銀タグ')">銀タグ</button>
+      <button class="chip" onclick="toggleChip(this, 'ビッグシルエット')">ビッグシルエット</button>
+    </div>
+
+    <div style="display: flex; gap: 6px; margin-top: 4px;">
+      <input type="text" id="customWord" class="input-field" placeholder="自由ワード追加 (例: 赤, XL)">
+      <button class="btn btn-save" style="width: 70px;" onclick="addCustomWord()">追加</button>
+    </div>
+  </section>
+
+  <!-- 3. 3大モール直結ボタン -->
+  <section class="card">
+    <div class="card-title">
+      <span>📊 売り切れ・落札データを見る</span>
+    </div>
+    <button class="btn btn-mercari" onclick="openMercari()">
+      <span>🔴 メルカリで売り切れを見る</span>
+    </button>
+    <button class="btn btn-yfurima" onclick="openYahooFurima()">
+      <span>🟣 Yahoo!フリマで相場を見る</span>
+    </button>
+    <button class="btn btn-yauc" onclick="openYahooAuc()">
+      <span>🔨 ヤフオクで落札相場を見る</span>
+    </button>
+    <button class="btn btn-save" style="margin-top: 4px;" onclick="saveToKeep()">
+      <span>📌 このワードを本日の仕入れメモに保存</span>
+    </button>
+  </section>
+
+  <!-- 4. 仕入れKeepメモ -->
+  <section class="card">
+    <div class="card-title">
+      <span>📦 本日の仕入れメモ（Keep）</span>
+      <button class="btn-clear" onclick="clearKeep()">全削除</button>
+    </div>
+    <div id="keepList" style="display: flex; flex-direction: column; gap: 6px;">
+      <div style="font-size: 0.75rem; color: #64748b; text-align: center;">メモはありません</div>
+    </div>
+  </section>
+</div>
+
+<script>
+  let selectedWords = [];
+
+  // 初期読み込み
+  window.addEventListener('DOMContentLoaded', () => {
+    const savedKey = localStorage.getItem('furugi_gemini_key') || '';
+    if (savedKey) document.getElementById('apiKey').value = savedKey;
+    renderKeepList();
+  });
+
+  function toggleApiSettings() {
+    const box = document.getElementById('apiBox');
+    box.style.display = box.style.display === 'none' ? 'flex' : 'none';
+  }
+
+  function saveApiKey() {
+    const val = document.getElementById('apiKey').value.trim();
+    localStorage.setItem('furugi_gemini_key', val);
+    alert('APIキーを端末に保存しました');
+    document.getElementById('apiBox').style.display = 'none';
+  }
+
+  // チップ選択トグル
+  function toggleChip(el, word) {
+    if (selectedWords.includes(word)) {
+      selectedWords = selectedWords.filter(w => w !== word);
+      el.classList.remove('active');
+    } else {
+      selectedWords.push(word);
+      el.classList.add('active');
+    }
+    updateSearchDisplay();
+  }
+
+  function addCustomWord() {
+    const input = document.getElementById('customWord');
+    const word = input.value.trim();
+    if (!word) return;
+    if (!selectedWords.includes(word)) {
+      selectedWords.push(word);
+      updateSearchDisplay();
+    }
+    input.value = '';
+  }
+
+  function updateSearchDisplay() {
+    const textEl = document.getElementById('selectedWordsText');
+    if (selectedWords.length === 0) {
+      textEl.innerText = '（ボタンを選んでください）';
+      textEl.style.color = '#64748b';
+    } else {
+      textEl.innerText = selectedWords.join(' ');
+      textEl.style.color = '#38bdf8';
+    }
+  }
+
+  function resetChips() {
+    selectedWords = [];
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    updateSearchDisplay();
+  }
+
+  function copyKeywords() {
+    const query = selectedWords.join(' ');
+    if (!query) return;
+    navigator.clipboard.writeText(query);
+    alert('コピーしました: ' + query);
+  }
+
+  // 3大モール連携URL生成
+  function getQuery() {
+    return encodeURIComponent(selectedWords.join(' '));
+  }
+
+  function openMercari() {
+    const q = getQuery();
+    if (!q) { alert('検索キーワードを選択してください'); return; }
+    // 売り切れ (status=sold_out), 価格帯 (3500-15000), 直近順
+    const url = `https://jp.mercari.com/search?keyword=${q}&status=sold_out&price_min=3500&price_max=15000&sort=created_time&order=desc`;
+    window.open(url, '_blank');
+  }
+
+  function openYahooFurima() {
+    const q = getQuery();
+    if (!q) { alert('検索キーワードを選択してください'); return; }
+    // 売り切れ (isSoldOut=1)
+    const url = `https://paypayfleamarket.yahoo.co.jp/search/${q}?isSoldOut=1`;
+    window.open(url, '_blank');
+  }
+
+  function openYahooAuc() {
+    const q = getQuery();
+    if (!q) { alert('検索キーワードを選択してください'); return; }
+    // 落札相場 (closed=1)
+    const url = `https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=${q}`;
+    window.open(url, '_blank');
+  }
+
+  // AIトレンド分析
+  async function runAiTrendAnalysis() {
+    const apiKey = localStorage.getItem('furugi_gemini_key') || document.getElementById('apiKey').value.trim();
+    const output = document.getElementById('aiOutput');
+    const chipBox = document.getElementById('aiChips');
+
+    if (!apiKey) {
+      alert('API設定ボタンからGemini APIキーを登録してください');
+      document.getElementById('apiBox').style.display = 'flex';
+      return;
+    }
+
+    output.innerText = 'AIが今月の需要とトレンドを分析中...';
+    chipBox.style.display = 'none';
+    chipBox.innerHTML = '';
+
+    const currentMonth = new Date().getMonth() + 1;
+
+    const prompt = `現在は${currentMonth}月です。日本の古着転売市場（メルカリ・ヤフオク）において、今月〜来月にかけて高回転・高利益で売れるアイテムとトレンドを分析してください。
+出力フォーマット:
+1. 【今月の最重要狙い目TOP3】（アイテム名と理由）
+2. 【高騰ディテール】（例: フェード、ボックス短丈、刺繍ロゴなど）
+3. 【おすすめ検索キーワード】（カンマ区切りで5個。例: Carhartt ダック, NIKE 銀タグ, オールドGAP ネルシャツ, UMBRO ナイロン, 90s リバースウィーブ）`;
+
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+      const data = await res.json();
+      const resText = data.candidates[0].content.parts[0].text;
+      output.innerText = resText;
+
+      // キーワード抽出してボタン化
+      const lines = resText.split('\n');
+      const kwLine = lines.find(l => l.includes('おすすめ検索キーワード') || l.includes('3.'));
+      if (kwLine) {
+        const rawKws = kwLine.replace(/.*[:：]/, '').split(/[,、]/);
+        chipBox.innerHTML = '<div class="chip-group-label" style="width:100%;">AI提案の即戦力ワード (タップで追加)</div>';
+        rawKws.forEach(kw => {
+          const clean = kw.trim().replace(/^[\d\.\-\s]+/, '');
+          if (clean) {
+            const btn = document.createElement('button');
+            btn.className = 'chip';
+            btn.innerText = clean;
+            btn.onclick = () => { toggleChip(btn, clean); };
+            chipBox.appendChild(btn);
+          }
+        });
+        chipBox.style.display = 'flex';
+      }
+    } catch (e) {
+      output.innerText = 'エラーが発生しました。APIキーまたは通信状況をご確認ください。';
+    }
+  }
+
+  // Keepメモ機能
+  function saveToKeep() {
+    const text = selectedWords.join(' ');
+    if (!text) { alert('保存するワードがありません'); return; }
+    let keep = JSON.parse(localStorage.getItem('furugi_keep_words') || '[]');
+    if (!keep.includes(text)) {
+      keep.unshift(text);
+      localStorage.setItem('furugi_keep_words', JSON.stringify(keep));
+      renderKeepList();
+      alert('本日の仕入れメモに保存しました！');
+    }
+  }
+
+  function renderKeepList() {
+    const listEl = document.getElementById('keepList');
+    const keep = JSON.parse(localStorage.getItem('furugi_keep_words') || '[]');
+    if (keep.length === 0) {
+      listEl.innerHTML = '<div style="font-size: 0.75rem; color: #64748b; text-align: center;">メモはありません</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    keep.forEach((item, idx) => {
+      const row = document.createElement('div');
+      row.className = 'keep-item';
+      row.innerHTML = `
+        <span style="cursor:pointer; color:#38bdf8;" onclick="loadKeepWord('${item}')">📌 ${item}</span>
+        <span class="keep-del" onclick="delKeep(${idx})">✖</span>
+      `;
+      listEl.appendChild(row);
+    });
+  }
+
+  function loadKeepWord(word) {
+    resetChips();
+    const parts = word.split(' ');
+    parts.forEach(p => {
+      selectedWords.push(p);
+      document.querySelectorAll('.chip').forEach(c => {
+        if (c.innerText === p) c.classList.add('active');
+      });
+    });
+    updateSearchDisplay();
+  }
+
+  function delKeep(index) {
+    let keep = JSON.parse(localStorage.getItem('furugi_keep_words') || '[]');
+    keep.splice(index, 1);
+    localStorage.setItem('furugi_keep_words', JSON.stringify(keep));
+    renderKeepList();
+  }
+
+  function clearKeep() {
+    if (!confirm('メモをすべて削除しますか？')) return;
+    localStorage.removeItem('furugi_keep_words');
+    renderKeepList();
+  }
+</script>
+</body>
+</html>
