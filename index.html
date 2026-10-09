@@ -133,12 +133,13 @@
       background: #090e1a;
       border: 1px dashed #334155;
       border-radius: 8px;
-      padding: 10px;
-      font-size: 0.78rem;
-      color: #cbd5e1;
+      padding: 12px;
+      font-size: 0.8rem;
+      color: #e2e8f0;
       min-height: 48px;
       white-space: pre-wrap;
       word-break: break-all;
+      line-height: 1.6;
     }
 
     .chip-group-label {
@@ -238,7 +239,7 @@
       </button>
     </div>
 
-    <div id="aiOutput" class="ai-result-box">ボタンを押すと、今月売れやすいカテゴリと注目ワードを診断します。</div>
+    <div id="aiOutput" class="ai-result-box">上のボタンを押すと、今月売れやすいカテゴリと注目ワードを診断します。</div>
     <div id="aiChips" class="chips-container" style="display: none;"></div>
   </section>
 
@@ -433,7 +434,7 @@
     window.open(url, '_blank');
   }
 
-  // AI分析（引数で指定されたモデルで実行）
+  // AI分析（上限カット撤廃・前置き禁止プロンプト）
   async function runAiTrendAnalysis(modelName) {
     let apiKey = document.getElementById('apiKey').value.trim() || getSavedApiKey();
     const output = document.getElementById('aiOutput');
@@ -446,27 +447,32 @@
     }
 
     const label = modelName.includes('3.5') ? '3.5 Flash（爆速）' : '3.8 Flash（高精度）';
-    output.innerText = `AI（${label}）が分析中...`;
+    output.innerText = `AI（${label}）が診断中...`;
     chipBox.style.display = 'none';
     chipBox.innerHTML = '';
 
     const currentMonth = new Date().getMonth() + 1;
-    const prompt = `現在は${currentMonth}月です。日本の古着市場（メルカリ・ヤフオク）で、今月〜来月にかけて高回転・高利益で売れるアイテムとトレンドを簡潔に分析してください。
-出力形式:
-1. 【今月の重点狙い目】（おすすめアイテム3点とその理由）
-2. 【高騰ディテール】（例: フェード、短丈ボックス、刺繍ロゴ等）
-3. 【おすすめ検索キーワード】（カンマ区切りで5個）`;
+    // 挨拶文・前置きを禁止し、1文字目から本題を出させる
+    const prompt = `あなたは古着せどりのプロ分析官です。現在は${currentMonth}月です。日本の古着市場（メルカリ・ヤフオク）で、今月〜来月にかけて高回転・高利益で売れるアイテムとトレンドを診断してください。
+挨拶や前置き（「〜をお届けします」等）は一切書かず、以下のフォーマットの1行目から書き始めてください。
+
+1. 【今月の重点狙い目】
+・（おすすめアイテム名）：（理由と相場感）
+・（おすすめアイテム名）：（理由と相場感）
+・（おすすめアイテム名）：（理由と相場感）
+
+2. 【高騰ディテール・特徴】
+・（例: フェード、ボックス短丈、刺繍ロゴ、企業ロゴなど）
+
+3. 【おすすめ検索キーワード】
+（メルカリ検索で即戦力になる単語をカンマ区切りで5〜6個。例: Carhartt ダック, NIKE 銀タグ, オールドGAP ネルシャツ, UMBRO ナイロン, 90s リバースウィーブ）`;
 
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            maxOutputTokens: 600,
-            temperature: 0.7
-          }
+          contents: [{ parts: [{ text: prompt }] }]
         })
       });
 
@@ -481,14 +487,26 @@
 
       output.innerText = `【${label} による診断結果】\n\n` + resText;
 
+      // キーワード抽出してボタン化
       const lines = resText.split('\n');
-      const kwLine = lines.find(l => l.includes('おすすめ検索キーワード') || l.includes('3.'));
+      const kwLine = lines.find(l => l.includes('おすすめ検索キーワード') || l.includes('3. 【おすすめ'));
+      let kwTarget = '';
+
       if (kwLine) {
-        const rawKws = kwLine.replace(/.*[:：]/, '').split(/[,、]/);
+        kwTarget = kwLine.replace(/.*[:：]/, '');
+        // もし行内にキーワードがなく次の行に書かれていた場合
+        if (!kwTarget.trim()) {
+          const idx = lines.indexOf(kwLine);
+          if (idx !== -1 && lines[idx + 1]) kwTarget = lines[idx + 1];
+        }
+      }
+
+      if (kwTarget) {
+        const rawKws = kwTarget.split(/[,、]/);
         chipBox.innerHTML = '<div class="chip-group-label" style="width:100%;">AI提案の即戦力ワード (タップで追加)</div>';
         rawKws.forEach(kw => {
           const clean = kw.trim().replace(/^[\d\.\-\s]+/, '');
-          if (clean) {
+          if (clean && clean.length > 1) {
             const btn = document.createElement('button');
             btn.className = 'chip';
             btn.innerText = clean;
