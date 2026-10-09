@@ -221,7 +221,7 @@
     <div id="apiBox" style="display: none;" class="api-row">
       <input type="text" id="apiKey" class="input-field" placeholder="Gemini APIキーを入力">
       <div style="display: flex; gap: 6px;">
-        <input type="text" id="modelName" class="input-field" placeholder="モデル名 (例: gemini-2.5-flash)" value="gemini-2.5-flash">
+        <input type="text" id="modelName" class="input-field" placeholder="モデル名" value="gemini-3.8-flash">
         <button class="btn btn-save" style="width: 80px;" onclick="saveApiKey()">保存</button>
       </div>
     </div>
@@ -331,7 +331,7 @@
   }
 
   function getSavedModel() {
-    return localStorage.getItem('furugi_model_name') || 'gemini-2.5-flash';
+    return localStorage.getItem('furugi_model_name') || 'gemini-3.8-flash';
   }
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -348,7 +348,7 @@
 
   function saveApiKey() {
     const key = document.getElementById('apiKey').value.trim();
-    const model = document.getElementById('modelName').value.trim() || 'gemini-2.5-flash';
+    const model = document.getElementById('modelName').value.trim() || 'gemini-3.8-flash';
     if (!key) {
       alert('APIキーを入力してください');
       return;
@@ -456,6 +456,7 @@
 3. 【おすすめ検索キーワード】（カンマ区切りで5個）`;
 
     try {
+      // 修正: gemini-3.8-flash で実行
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
