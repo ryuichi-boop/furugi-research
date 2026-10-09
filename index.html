@@ -434,7 +434,7 @@
     window.open(url, '_blank');
   }
 
-  // AI分析（上限カット撤廃・前置き禁止プロンプト）
+  // AI分析
   async function runAiTrendAnalysis(modelName) {
     let apiKey = document.getElementById('apiKey').value.trim() || getSavedApiKey();
     const output = document.getElementById('aiOutput');
@@ -452,20 +452,19 @@
     chipBox.innerHTML = '';
 
     const currentMonth = new Date().getMonth() + 1;
-    // 挨拶文・前置きを禁止し、1文字目から本題を出させる
     const prompt = `あなたは古着せどりのプロ分析官です。現在は${currentMonth}月です。日本の古着市場（メルカリ・ヤフオク）で、今月〜来月にかけて高回転・高利益で売れるアイテムとトレンドを診断してください。
-挨拶や前置き（「〜をお届けします」等）は一切書かず、以下のフォーマットの1行目から書き始めてください。
+挨拶や前置きは書かず、必ず以下のフォーマットで出力してください。
 
 1. 【今月の重点狙い目】
-・（おすすめアイテム名）：（理由と相場感）
-・（おすすめアイテム名）：（理由と相場感）
-・（おすすめアイテム名）：（理由と相場感）
+・（アイテム名）：（理由と相場感）
+・（アイテム名）：（理由と相場感）
+・（アイテム名）：（理由と相場感）
 
 2. 【高騰ディテール・特徴】
-・（例: フェード、ボックス短丈、刺繍ロゴ、企業ロゴなど）
+・（例: フェード、ボックス短丈、刺繍ロゴ等）
 
 3. 【おすすめ検索キーワード】
-（メルカリ検索で即戦力になる単語をカンマ区切りで5〜6個。例: Carhartt ダック, NIKE 銀タグ, オールドGAP ネルシャツ, UMBRO ナイロン, 90s リバースウィーブ）`;
+（ここに見出しは書かず、メルカリ検索用の具体的なキーワードのみをカンマ区切りで5〜6個並べてください。例: Carhartt デトロイトジャケット, パタゴニア シンチラ, UMBRO ナイロンジャケット, 90s リバースウィーブ, リアルツリー カモ）`;
 
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
@@ -487,34 +486,45 @@
 
       output.innerText = `【${label} による診断結果】\n\n` + resText;
 
-      // キーワード抽出してボタン化
-      const lines = resText.split('\n');
-      const kwLine = lines.find(l => l.includes('おすすめ検索キーワード') || l.includes('3. 【おすすめ'));
+      // 修正: 見出しではなく、キーワード本文だけを確実に抽出してボタン化
+      const lines = resText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
       let kwTarget = '';
 
-      if (kwLine) {
-        kwTarget = kwLine.replace(/.*[:：]/, '');
-        // もし行内にキーワードがなく次の行に書かれていた場合
-        if (!kwTarget.trim()) {
-          const idx = lines.indexOf(kwLine);
-          if (idx !== -1 && lines[idx + 1]) kwTarget = lines[idx + 1];
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('おすすめ検索キーワード') || lines[i].includes('3.')) {
+          // 同じ行にコロン以降のキーワードがあるか
+          const afterColon = lines[i].replace(/.*[:：】\]]/, '').trim();
+          if (afterColon.length > 0 && !afterColon.includes('おすすめ検索キーワード')) {
+            kwTarget = afterColon;
+          } else if (i + 1 < lines.length) {
+            // 次の行にキーワード群が書かれている場合
+            kwTarget = lines[i + 1];
+          }
+          break;
         }
       }
 
       if (kwTarget) {
         const rawKws = kwTarget.split(/[,、]/);
         chipBox.innerHTML = '<div class="chip-group-label" style="width:100%;">AI提案の即戦力ワード (タップで追加)</div>';
+        let addedCount = 0;
+
         rawKws.forEach(kw => {
-          const clean = kw.trim().replace(/^[\d\.\-\s]+/, '');
-          if (clean && clean.length > 1) {
+          let clean = kw.trim().replace(/^[\d\.\-\s・]+/, '').replace(/^[【\[].*?[】\]]/, '').trim();
+          // 見出し文字列自体は弾く
+          if (clean && clean.length > 1 && !clean.includes('おすすめ検索キーワード')) {
             const btn = document.createElement('button');
             btn.className = 'chip';
             btn.innerText = clean;
             btn.onclick = () => { toggleChip(btn, clean); };
             chipBox.appendChild(btn);
+            addedCount++;
           }
         });
-        chipBox.style.display = 'flex';
+
+        if (addedCount > 0) {
+          chipBox.style.display = 'flex';
+        }
       }
     } catch (e) {
       output.innerText = 'エラー詳細: ' + e.message;
