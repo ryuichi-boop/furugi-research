@@ -81,7 +81,6 @@
 
     .api-row {
       display: flex;
-      flex-direction: column;
       gap: 6px;
     }
     .input-field {
@@ -96,6 +95,12 @@
     }
     .input-field:focus {
       border-color: #38bdf8;
+    }
+
+    .diag-btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
     }
 
     .btn {
@@ -116,7 +121,8 @@
     .btn:active {
       opacity: 0.8;
     }
-    .btn-ai { background: var(--accent-blue); }
+    .btn-35 { background: #0284c7; }
+    .btn-38 { background: #2563eb; }
     .btn-mercari { background: var(--mercari); }
     .btn-yfurima { background: var(--yahoo-furima); }
     .btn-yauc { background: var(--yahoo-auc); }
@@ -211,25 +217,28 @@
     <p>仕入れ前の市場データ＆トレンド事前照会</p>
   </header>
 
-  <!-- 1. AIトレンド診断 -->
+  <!-- 1. AIトレンド診断（2ボタン選択式） -->
   <section class="card">
     <div class="card-title">
-      <span>⚡ AIトレンド・今月の狙い目</span>
-      <button class="btn-clear" onclick="toggleApiSettings()">🔑 設定</button>
+      <span>⚡ 今月の勝確トレンド診断</span>
+      <button class="btn-clear" onclick="toggleApiSettings()">🔑 API設定</button>
     </div>
 
     <div id="apiBox" style="display: none;" class="api-row">
       <input type="text" id="apiKey" class="input-field" placeholder="Gemini APIキーを入力">
-      <div style="display: flex; gap: 6px;">
-        <input type="text" id="modelName" class="input-field" placeholder="モデル名" value="gemini-3.8-flash">
-        <button class="btn btn-save" style="width: 80px;" onclick="saveApiKey()">保存</button>
-      </div>
+      <button class="btn btn-save" style="width: 80px;" onclick="saveApiKey()">保存</button>
     </div>
 
-    <button class="btn btn-ai" onclick="runAiTrendAnalysis()">
-      <span>💡 今月の勝ち筋トレンドを診断</span>
-    </button>
-    <div id="aiOutput" class="ai-result-box">「診断」を押すと、今月売れやすいカテゴリと注目ワードをAIが提案します。</div>
+    <div class="diag-btn-grid">
+      <button class="btn btn-35" onclick="runAiTrendAnalysis('gemini-3.5-flash')">
+        <span>⚡ 3.5 Flash<br><small style="font-size: 0.7rem; font-weight: normal;">(爆速診断)</small></span>
+      </button>
+      <button class="btn btn-38" onclick="runAiTrendAnalysis('gemini-3.8-flash')">
+        <span>🎯 3.8 Flash<br><small style="font-size: 0.7rem; font-weight: normal;">(高精度診断)</small></span>
+      </button>
+    </div>
+
+    <div id="aiOutput" class="ai-result-box">ボタンを押すと、今月売れやすいカテゴリと注目ワードを診断します。</div>
     <div id="aiChips" class="chips-container" style="display: none;"></div>
   </section>
 
@@ -330,14 +339,9 @@
            localStorage.getItem('apiKey') || '';
   }
 
-  function getSavedModel() {
-    return localStorage.getItem('furugi_model_name') || 'gemini-3.8-flash';
-  }
-
   window.addEventListener('DOMContentLoaded', () => {
     const key = getSavedApiKey();
     if (key) document.getElementById('apiKey').value = key;
-    document.getElementById('modelName').value = getSavedModel();
     renderKeepList();
   });
 
@@ -348,15 +352,13 @@
 
   function saveApiKey() {
     const key = document.getElementById('apiKey').value.trim();
-    const model = document.getElementById('modelName').value.trim() || 'gemini-3.8-flash';
     if (!key) {
       alert('APIキーを入力してください');
       return;
     }
     localStorage.setItem('furugi_gemini_key', key);
     localStorage.setItem('gemini_api_key', key);
-    localStorage.setItem('furugi_model_name', model);
-    alert('設定を保存しました');
+    alert('APIキーを保存しました');
     document.getElementById('apiBox').style.display = 'none';
   }
 
@@ -431,37 +433,40 @@
     window.open(url, '_blank');
   }
 
-  // AI分析
-  async function runAiTrendAnalysis() {
+  // AI分析（引数で指定されたモデルで実行）
+  async function runAiTrendAnalysis(modelName) {
     let apiKey = document.getElementById('apiKey').value.trim() || getSavedApiKey();
-    let modelName = document.getElementById('modelName').value.trim() || getSavedModel();
     const output = document.getElementById('aiOutput');
     const chipBox = document.getElementById('aiChips');
 
     if (!apiKey) {
-      alert('設定ボタンを開いてAPIキーを入力・保存してください');
+      alert('API設定ボタンを開いてAPIキーを入力・保存してください');
       document.getElementById('apiBox').style.display = 'flex';
       return;
     }
 
-    output.innerText = 'AIが今月の需要とトレンドを分析中...';
+    const label = modelName.includes('3.5') ? '3.5 Flash（爆速）' : '3.8 Flash（高精度）';
+    output.innerText = `AI（${label}）が分析中...`;
     chipBox.style.display = 'none';
     chipBox.innerHTML = '';
 
     const currentMonth = new Date().getMonth() + 1;
-    const prompt = `現在は${currentMonth}月です。日本の古着市場（メルカリ・ヤフオク）で、今月〜来月にかけて高回転・高利益で売れるアイテムとトレンドを分析してください。
+    const prompt = `現在は${currentMonth}月です。日本の古着市場（メルカリ・ヤフオク）で、今月〜来月にかけて高回転・高利益で売れるアイテムとトレンドを簡潔に分析してください。
 出力形式:
 1. 【今月の重点狙い目】（おすすめアイテム3点とその理由）
 2. 【高騰ディテール】（例: フェード、短丈ボックス、刺繍ロゴ等）
 3. 【おすすめ検索キーワード】（カンマ区切りで5個）`;
 
     try {
-      // 修正: gemini-3.8-flash で実行
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            maxOutputTokens: 600,
+            temperature: 0.7
+          }
         })
       });
 
@@ -474,7 +479,7 @@
       const resText = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!resText) throw new Error('AIからの応答が空でした');
 
-      output.innerText = resText;
+      output.innerText = `【${label} による診断結果】\n\n` + resText;
 
       const lines = resText.split('\n');
       const kwLine = lines.find(l => l.includes('おすすめ検索キーワード') || l.includes('3.'));
